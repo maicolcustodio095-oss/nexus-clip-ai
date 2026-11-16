@@ -4,18 +4,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from urllib.parse import urlparse
 from uuid import uuid4
-from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import subprocess
-import shutil
 import os
+import imageio_ffmpeg
+
+
+# ==========================================
+# NEXUS CLIP AI - ENGINE 0.3
+# ==========================================
 
 app = FastAPI(
     title="NEXUS CLIP AI API",
-    description="NEXUS ENGINE - procesamiento multimedia",
+    description="Motor de procesamiento multimedia",
     version="0.3.0"
 )
+
+
+# ==========================================
+# CONEXION CON NUESTRA PAGINA
+# ==========================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,9 +36,20 @@ app.add_middleware(
     allow_headers=["Content-Type"]
 )
 
+
+# ==========================================
+# CONFIGURACION
+# ==========================================
+
 MAX_FILE_SIZE = 15 * 1024 * 1024
+
 ALLOWED_EXTENSIONS = {
-    ".mp4", ".mov", ".webm", ".mp3", ".wav", ".m4a"
+    ".mp4",
+    ".mov",
+    ".webm",
+    ".mp3",
+    ".wav",
+    ".m4a"
 }
 
 
@@ -37,6 +57,30 @@ class VideoRequest(BaseModel):
     url: str = Field(min_length=12, max_length=2048)
     mode: str = "video"
 
+
+# ==========================================
+# MOTOR FFMPEG
+# ==========================================
+
+def get_ffmpeg():
+    try:
+        executable = imageio_ffmpeg.get_ffmpeg_exe()
+
+        if not os.path.isfile(executable):
+            raise RuntimeError("FFmpeg no encontrado")
+
+        return executable
+
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="El motor FFmpeg no está disponible."
+        )
+
+
+# ==========================================
+# ESTADO DEL SERVIDOR
+# ==========================================
 
 @app.get("/")
 def home():
@@ -52,30 +96,49 @@ def home():
 
 @app.get("/health")
 def health():
+    try:
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        ffmpeg_available = os.path.isfile(ffmpeg)
+    except Exception:
+        ffmpeg_available = False
+
     return {
         "status": "ok",
         "service": "nexus-clip-ai-api",
         "version": "0.3.0",
-        "ffmpeg_available": shutil.which("ffmpeg") is not None
+        "ffmpeg_available": ffmpeg_available
     }
 
+
+# ==========================================
+# IDENTIFICAR YOUTUBE Y TWITCH
+# ==========================================
 
 def identify_platform(url):
     try:
         parsed = urlparse(url.strip())
         host = (parsed.hostname or "").lower()
     except ValueError:
-        raise HTTPException(400, "Enlace inválido.")
+        raise HTTPException(
+            status_code=400,
+            detail="Enlace inválido."
+        )
 
     if parsed.scheme != "https":
-        raise HTTPException(400, "Utiliza HTTPS.")
+        raise HTTPException(
+            status_code=400,
+            detail="Utiliza un enlace HTTPS."
+        )
 
     if parsed.username or parsed.password:
-        raise HTTPException(400, "Credenciales no permitidas.")
+        raise HTTPException(
+            status_code=400,
+            detail="No se permiten credenciales."
+        )
 
     if host == "youtu.be" or (
-        host == "youtube.com" or
-        host.endswith(".youtube.com")
+        host == "youtube.com"
+        or host.endswith(".youtube.com")
     ):
         return "youtube"
 
@@ -83,14 +146,23 @@ def identify_platform(url):
         return "twitch"
 
     raise HTTPException(
-        400, "Solo se admiten YouTube y Twitch."
+        status_code=400,
+        detail="Solo admitimos YouTube y Twitch."
     )
 
 
+# ==========================================
+# VERIFICAR ENLACES
+# ==========================================
+
 @app.post("/api/analyze")
 def analyze(request: VideoRequest):
-    if request.mode not in ("video", "live"):
-        raise HTTPException(400, "Modo no válido.")
+
+    if request.mode not in ["video", "live"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Modo no válido."
+        )
 
     platform = identify_platform(request.url)
 
@@ -101,40 +173,53 @@ def analyze(request: VideoRequest):
         "mode": request.mode,
         "status": "not_started",
         "ai_processing": False,
-        "message": "Enlace validado. IA pendiente."
+        "message": (
+            "Enlace recibido correctamente. "
+            "El análisis con IA aún no está disponible."
+        )
     }
 
 
+# ==========================================
+# EXTRAER AUDIO DE ARCHIVOS
+# ==========================================
+
 @app.post("/api/process-upload")
 def process_upload(file: UploadFile = File(...)):
-    extension = Path(file.filename or "").suffix.lower()
+
+    extension = Path(
+        file.filename or ""
+    ).suffix.lower()
 
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
-            400, "Formato no admitido."
+            status_code=400,
+            detail="Formato de archivo no admitido."
         )
 
-    if not shutil.which("ffmpeg"):
-        raise HTTPException(
-            503, "FFmpeg no está instalado en el servidor."
-        )
-
+    ffmpeg = get_ffmpeg()
     job_id = str(uuid4())
 
     with TemporaryDirectory() as temp_dir:
+
         source = os.path.join(
-            temp_dir, "source" + extension
+            temp_dir,
+            "source" + extension
         )
+
         output = os.path.join(
-            temp_dir, "audio.wav"
+            temp_dir,
+            "audio.wav"
         )
 
         total_size = 0
 
         try:
             with open(source, "wb") as destination:
+
                 while True:
                     chunk = file.file.read(1024 * 1024)
+
                     if not chunk:
                         break
 
@@ -142,19 +227,23 @@ def process_upload(file: UploadFile = File(...)):
 
                     if total_size > MAX_FILE_SIZE:
                         raise HTTPException(
-                            413,
-                            "El archivo supera el límite de 15 MB."
+                            status_code=413,
+                            detail=(
+                                "El archivo supera "
+                                "el límite de 15 MB."
+                            )
                         )
 
                     destination.write(chunk)
 
             if total_size == 0:
                 raise HTTPException(
-                    400, "El archivo está vacío."
+                    status_code=400,
+                    detail="El archivo está vacío."
                 )
 
             command = [
-                "ffmpeg",
+                ffmpeg,
                 "-nostdin",
                 "-hide_banner",
                 "-loglevel", "error",
@@ -176,19 +265,28 @@ def process_upload(file: UploadFile = File(...)):
                     timeout=45,
                     check=True
                 )
+
             except subprocess.TimeoutExpired:
                 raise HTTPException(
-                    408, "El procesamiento tardó demasiado."
+                    status_code=408,
+                    detail=(
+                        "El procesamiento tardó demasiado."
+                    )
                 )
+
             except subprocess.CalledProcessError:
                 raise HTTPException(
-                    422,
-                    "No se pudo extraer el audio."
+                    status_code=422,
+                    detail=(
+                        "No se pudo extraer el audio. "
+                        "Comprueba que el archivo sea válido."
+                    )
                 )
 
             if not os.path.isfile(output):
                 raise HTTPException(
-                    422, "No se generó audio."
+                    status_code=422,
+                    detail="No se generó el audio."
                 )
 
             audio_size = os.path.getsize(output)
@@ -206,7 +304,8 @@ def process_upload(file: UploadFile = File(...)):
                 "transcription": "not_started",
                 "message": (
                     "Audio extraído correctamente. "
-                    "La transcripción todavía no está activa."
+                    "La transcripción con IA "
+                    "todavía no está disponible."
                 )
             }
 
@@ -214,11 +313,20 @@ def process_upload(file: UploadFile = File(...)):
             file.file.close()
 
 
+# ==========================================
+# CAPACIDADES DEL SISTEMA
+# ==========================================
+
 @app.get("/api/capabilities")
 def capabilities():
+
     return {
+        "project": "NEXUS CLIP AI",
         "version": "0.3.0",
-        "supported_platforms": ["youtube", "twitch"],
+        "supported_platforms": [
+            "youtube",
+            "twitch"
+        ],
         "available_features": [
             "url_validation",
             "platform_detection",
@@ -229,8 +337,8 @@ def capabilities():
             "highlight_detection",
             "automatic_clipping",
             "vertical_video",
-            "subtitles",
+            "automatic_subtitles",
             "mp4_export"
         ]
-    }
+                        }
     
