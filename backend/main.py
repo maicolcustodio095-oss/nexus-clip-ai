@@ -2,29 +2,25 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs, quote
 from uuid import uuid4
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from datetime import datetime, timezone
+from threading import Lock
 import subprocess
 import os
+import json
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 import imageio_ffmpeg
 
-
-# ==========================================
-# NEXUS CLIP AI - ENGINE 0.3
-# ==========================================
+VERSION = "0.4.0"
 
 app = FastAPI(
     title="NEXUS CLIP AI API",
-    description="Motor de procesamiento multimedia",
-    version="0.3.0"
+    version=VERSION
 )
-
-
-# ==========================================
-# CONEXION CON NUESTRA PAGINA
-# ==========================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,21 +32,16 @@ app.add_middleware(
     allow_headers=["Content-Type"]
 )
 
-
-# ==========================================
-# CONFIGURACION
-# ==========================================
-
 MAX_FILE_SIZE = 15 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {
-    ".mp4",
-    ".mov",
-    ".webm",
-    ".mp3",
-    ".wav",
-    ".m4a"
+    ".mp4", ".mov", ".webm",
+    ".mp3", ".wav", ".m4a"
 }
+
+SESSIONS = {}
+SESSION_LOCK = Lock()
+MAX_SESSIONS = 100
 
 
 class VideoRequest(BaseModel):
@@ -58,113 +49,351 @@ class VideoRequest(BaseModel):
     mode: str = "video"
 
 
-# ==========================================
-# MOTOR FFMPEG
-# ==========================================
+class LiveRequest(BaseModel):
+    url: str = Field(min_length=12, max_length=2048)
 
-def get_ffmpeg():
+
+def now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def request_json(url, headers=None):
+    req = Request(
+        url,
+        headers=headers or {
+            "User-Agent": "NEXUS-CLIP-AI/0.4"
+        }
+    )
+
     try:
-        executable = imageio_ffmpeg.get_ffmpeg_exe()
+        with urlopen(req, timeout=12) as response:
+            return json.load(response)
 
-        if not os.path.isfile(executable):
-            raise RuntimeError("FFmpeg no encontrado")
+    except HTTPError as exc:
+        if exc.code in (401, 403):
+            raise HTTPException(
+                503,
+                "Credenciales inválidas o sin permisos."
+            )
 
-        return executable
+        if exc.code == 429:
+            raise HTTPException(
+                503,
+                "Límite de consultas alcanzado."
+            )
 
-    except Exception:
         raise HTTPException(
-            status_code=503,
-            detail="El motor FFmpeg no está disponible."
+            502,
+            "La plataforma no pudo responder."
+        )
+
+    except (URLError, TimeoutError, ValueError):
+        raise HTTPException(
+            502,
+            "No fue posible contactar la plataforma."
         )
 
 
-# ==========================================
-# ESTADO DEL SERVIDOR
-# ==========================================
+def identify_platform(url):
+    try:
+        parsed = urlparse(url.strip())
+        host = (parsed.hostname or "").lower()
+
+        if (
+            parsed.scheme != "https"
+            or parsed.username
+            or parsed.password
+            or parsed.port not in (None, 443)
+        ):
+            raise ValueError()
+
+    except ValueError:
+        raise HTTPException(
+            400,
+            "Introduce un enlace HTTPS válido."
+        )
+
+    if host in (
+        "youtu.be",
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com"
+    ):
+        return "youtube", parsed
+
+    if host in (
+        "twitch.tv",
+        "www.twitch.tv",
+        "m.twitch.tv"
+    ):
+        return "twitch", parsed
+
+    raise HTTPException(
+        400,
+        "Solo se admiten YouTube y Twitch."
+    )
+
+
+def extract_target(platform, parsed):
+    parts = [
+        p for p in parsed.path.split("/") if p
+    ]
+
+    if platform == "twitch":
+        if (
+            len(parts) != 1
+            or not parts[0].replace("_", "").isalnum()
+        ):
+            raise HTTPException(
+                400,
+                "Usa https://www.twitch.tv/canal"
+            )
+
+        return parts[0].lower()
+
+    host = (parsed.hostname or "").lower()
+
+    if host == "youtu.be":
+        video_id = (
+            parts[0] if len(parts) == 1 else ""
+        )
+
+    elif parts[:1] == ["watch"]:
+        video_id = parse_qs(
+            parsed.query
+        ).get("v", [""])[0]
+
+    elif (
+        len(parts) == 2
+        and parts[0] in (
+            "live", "shorts", "embed"
+        )
+    ):
+        video_id = parts[1]
+
+    else:
+        video_id = ""
+
+    if (
+        len(video_id) != 11
+        or not all(
+            c.isalnum() or c in "_-"
+            for c in video_id
+        )
+    ):
+        raise HTTPException(
+            400,
+            "Usa el enlace directo de YouTube."
+        )
+
+    return video_id
+
+
+def twitch_token():
+    client_id = os.getenv(
+        "TWITCH_CLIENT_ID", ""
+    ).strip()
+
+    secret = os.getenv(
+        "TWITCH_CLIENT_SECRET", ""
+    ).strip()
+
+    if not client_id or not secret:
+        raise HTTPException(
+            503,
+            "Twitch no está configurado en Render."
+        )
+
+    url = (
+        "https://id.twitch.tv/oauth2/token"
+        "?client_id=" + quote(client_id)
+        + "&client_secret=" + quote(secret)
+        + "&grant_type=client_credentials"
+    )
+
+    try:
+        req = Request(
+            url,
+            data=b"",
+            method="POST"
+        )
+
+        with urlopen(req, timeout=12) as response:
+            return (
+                client_id,
+                json.load(response)["access_token"]
+            )
+
+    except (
+        HTTPError,
+        URLError,
+        TimeoutError,
+        KeyError,
+        ValueError
+    ):
+        raise HTTPException(
+            503,
+            "No se pudo autenticar con Twitch."
+        )
+
+
+def live_status(url):
+    platform, parsed = identify_platform(url)
+
+    target = extract_target(
+        platform, parsed
+    )
+
+    if platform == "twitch":
+        client_id, token = twitch_token()
+
+        data = request_json(
+            "https://api.twitch.tv/helix/streams"
+            "?user_login=" + quote(target),
+            {
+                "Client-ID": client_id,
+                "Authorization": "Bearer " + token
+            }
+        )
+
+        streams = data.get("data", [])
+        stream = streams[0] if streams else None
+
+        return {
+            "platform": "twitch",
+            "target": target,
+            "is_live": bool(stream),
+            "title": (
+                stream.get("title")
+                if stream else None
+            ),
+            "viewer_count": (
+                stream.get("viewer_count")
+                if stream else None
+            ),
+            "checked_at": now()
+        }
+
+    key = os.getenv(
+        "YOUTUBE_API_KEY", ""
+    ).strip()
+
+    if not key:
+        raise HTTPException(
+            503,
+            "YouTube no está configurado en Render."
+        )
+
+    data = request_json(
+        "https://www.googleapis.com/youtube/v3/videos"
+        "?part=snippet,liveStreamingDetails"
+        "&id=" + quote(target)
+        + "&key=" + quote(key)
+    )
+
+    items = data.get("items", [])
+
+    if not items:
+        raise HTTPException(
+            404,
+            "No se encontró el video público."
+        )
+
+    item = items[0]
+
+    details = item.get(
+        "liveStreamingDetails", {}
+    )
+
+    broadcast = item.get(
+        "snippet", {}
+    ).get("liveBroadcastContent")
+
+    is_live = (
+        broadcast == "live"
+        and bool(
+            details.get("actualStartTime")
+        )
+        and not details.get("actualEndTime")
+    )
+
+    return {
+        "platform": "youtube",
+        "target": target,
+        "is_live": is_live,
+        "title": item.get(
+            "snippet", {}
+        ).get("title"),
+        "viewer_count": None,
+        "checked_at": now()
+    }
+
+
+def ffmpeg_path():
+    try:
+        path = imageio_ffmpeg.get_ffmpeg_exe()
+
+        if os.path.isfile(path):
+            return path
+
+    except Exception:
+        pass
+
+    raise HTTPException(
+        503,
+        "FFmpeg no está disponible."
+    )
+
 
 @app.get("/")
 def home():
     return {
         "project": "NEXUS CLIP AI",
         "engine": "NEXUS ENGINE",
-        "version": "0.3.0",
+        "version": VERSION,
         "status": "online",
-        "transcription_enabled": False,
-        "automatic_clipping_enabled": False
+        "automatic_clipping_enabled": False,
+        "live_monitoring_enabled": False
     }
 
 
 @app.get("/health")
 def health():
     try:
-        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-        ffmpeg_available = os.path.isfile(ffmpeg)
-    except Exception:
-        ffmpeg_available = False
+        ffmpeg_path()
+        available = True
+
+    except HTTPException:
+        available = False
 
     return {
         "status": "ok",
-        "service": "nexus-clip-ai-api",
-        "version": "0.3.0",
-        "ffmpeg_available": ffmpeg_available
+        "version": VERSION,
+        "ffmpeg_available": available,
+        "twitch_configured": bool(
+            os.getenv("TWITCH_CLIENT_ID")
+            and os.getenv("TWITCH_CLIENT_SECRET")
+        ),
+        "youtube_configured": bool(
+            os.getenv("YOUTUBE_API_KEY")
+        )
     }
 
 
-# ==========================================
-# IDENTIFICAR YOUTUBE Y TWITCH
-# ==========================================
-
-def identify_platform(url):
-    try:
-        parsed = urlparse(url.strip())
-        host = (parsed.hostname or "").lower()
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Enlace inválido."
-        )
-
-    if parsed.scheme != "https":
-        raise HTTPException(
-            status_code=400,
-            detail="Utiliza un enlace HTTPS."
-        )
-
-    if parsed.username or parsed.password:
-        raise HTTPException(
-            status_code=400,
-            detail="No se permiten credenciales."
-        )
-
-    if host == "youtu.be" or (
-        host == "youtube.com"
-        or host.endswith(".youtube.com")
-    ):
-        return "youtube"
-
-    if host == "twitch.tv" or host.endswith(".twitch.tv"):
-        return "twitch"
-
-    raise HTTPException(
-        status_code=400,
-        detail="Solo admitimos YouTube y Twitch."
-    )
-
-
-# ==========================================
-# VERIFICAR ENLACES
-# ==========================================
-
 @app.post("/api/analyze")
 def analyze(request: VideoRequest):
-
-    if request.mode not in ["video", "live"]:
+    if request.mode not in (
+        "video", "live"
+    ):
         raise HTTPException(
-            status_code=400,
-            detail="Modo no válido."
+            400,
+            "Modo no válido."
         )
 
-    platform = identify_platform(request.url)
+    platform, _ = identify_platform(
+        request.url
+    )
 
     return {
         "success": True,
@@ -174,72 +403,136 @@ def analyze(request: VideoRequest):
         "status": "not_started",
         "ai_processing": False,
         "message": (
-            "Enlace recibido correctamente. "
-            "El análisis con IA aún no está disponible."
+            "Enlace validado. "
+            "La IA aún no está disponible."
         )
     }
 
 
-# ==========================================
-# EXTRAER AUDIO DE ARCHIVOS
-# ==========================================
+@app.post("/api/live/check")
+def check_live(request: LiveRequest):
+    return {
+        "success": True,
+        **live_status(request.url)
+    }
+
+
+@app.post("/api/live/sessions")
+def create_session(request: LiveRequest):
+    status = live_status(request.url)
+
+    if not status["is_live"]:
+        raise HTTPException(
+            409,
+            "La transmisión no está en vivo."
+        )
+
+    session = {
+        "session_id": str(uuid4()),
+        "url": request.url,
+        "platform": status["platform"],
+        "target": status["target"],
+        "created_at": now(),
+        "status": "registered",
+        "monitoring_active": False,
+        "clips_generated": 0,
+        "last_check": status
+    }
+
+    with SESSION_LOCK:
+        if len(SESSIONS) >= MAX_SESSIONS:
+            raise HTTPException(
+                503,
+                "Límite de sesiones alcanzado."
+            )
+
+        SESSIONS[
+            session["session_id"]
+        ] = session
+
+    return {
+        "success": True,
+        **session,
+        "message": (
+            "Sesión registrada. "
+            "El monitoreo automático "
+            "todavía no está activo."
+        )
+    }
+
+
+@app.get("/api/live/sessions/{session_id}")
+def get_session(session_id: str):
+    with SESSION_LOCK:
+        session = SESSIONS.get(
+            session_id
+        )
+
+        if not session:
+            raise HTTPException(
+                404,
+                "Sesión no encontrada o servidor reiniciado."
+            )
+
+        return dict(session)
+
 
 @app.post("/api/process-upload")
-def process_upload(file: UploadFile = File(...)):
-
+def process_upload(
+    file: UploadFile = File(...)
+):
     extension = Path(
         file.filename or ""
     ).suffix.lower()
 
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
-            status_code=400,
-            detail="Formato de archivo no admitido."
+            400,
+            "Formato no admitido."
         )
 
-    ffmpeg = get_ffmpeg()
-    job_id = str(uuid4())
+    ffmpeg = ffmpeg_path()
 
-    with TemporaryDirectory() as temp_dir:
-
+    with TemporaryDirectory() as directory:
         source = os.path.join(
-            temp_dir,
+            directory,
             "source" + extension
         )
 
         output = os.path.join(
-            temp_dir,
+            directory,
             "audio.wav"
         )
 
-        total_size = 0
+        total = 0
 
         try:
-            with open(source, "wb") as destination:
+            with open(
+                source, "wb"
+            ) as destination:
 
                 while True:
-                    chunk = file.file.read(1024 * 1024)
+                    chunk = file.file.read(
+                        1024 * 1024
+                    )
 
                     if not chunk:
                         break
 
-                    total_size += len(chunk)
+                    total += len(chunk)
 
-                    if total_size > MAX_FILE_SIZE:
+                    if total > MAX_FILE_SIZE:
                         raise HTTPException(
-                            status_code=413,
-                            detail=(
-                                "El archivo supera "
-                                "el límite de 15 MB."
-                            )
+                            413,
+                            "El archivo supera 15 MB."
                         )
 
                     destination.write(chunk)
 
-            if total_size == 0:
+            if not total:
                 raise HTTPException(
-                    status_code=400,
-                    detail="El archivo está vacío."
+                    400,
+                    "Archivo vacío."
                 )
 
             command = [
@@ -268,44 +561,39 @@ def process_upload(file: UploadFile = File(...)):
 
             except subprocess.TimeoutExpired:
                 raise HTTPException(
-                    status_code=408,
-                    detail=(
-                        "El procesamiento tardó demasiado."
-                    )
+                    408,
+                    "El procesamiento tardó demasiado."
                 )
 
             except subprocess.CalledProcessError:
                 raise HTTPException(
-                    status_code=422,
-                    detail=(
-                        "No se pudo extraer el audio. "
-                        "Comprueba que el archivo sea válido."
-                    )
+                    422,
+                    "No se pudo extraer el audio."
                 )
 
             if not os.path.isfile(output):
                 raise HTTPException(
-                    status_code=422,
-                    detail="No se generó el audio."
+                    422,
+                    "No se generó audio."
                 )
-
-            audio_size = os.path.getsize(output)
 
             return {
                 "success": True,
-                "job_id": job_id,
+                "job_id": str(uuid4()),
                 "status": "audio_extracted",
-                "input_bytes": total_size,
-                "audio_bytes": audio_size,
+                "input_bytes": total,
+                "audio_bytes": os.path.getsize(
+                    output
+                ),
                 "audio_format": "wav",
                 "sample_rate": 16000,
                 "channels": 1,
                 "max_audio_seconds": 120,
                 "transcription": "not_started",
                 "message": (
-                    "Audio extraído correctamente. "
-                    "La transcripción con IA "
-                    "todavía no está disponible."
+                    "Audio extraído. "
+                    "Todavía no se conserva "
+                    "ni se transcribe."
                 )
             }
 
@@ -313,16 +601,10 @@ def process_upload(file: UploadFile = File(...)):
             file.file.close()
 
 
-# ==========================================
-# CAPACIDADES DEL SISTEMA
-# ==========================================
-
 @app.get("/api/capabilities")
 def capabilities():
-
     return {
-        "project": "NEXUS CLIP AI",
-        "version": "0.3.0",
+        "version": VERSION,
         "supported_platforms": [
             "youtube",
             "twitch"
@@ -330,15 +612,23 @@ def capabilities():
         "available_features": [
             "url_validation",
             "platform_detection",
+            "live_status_check_with_credentials",
+            "temporary_live_session_registration",
             "audio_extraction_from_upload"
         ],
         "planned_features": [
+            "persistent_sessions",
+            "user_authentication",
+            "continuous_live_monitoring",
+            "chat_analysis",
             "automatic_transcription",
             "highlight_detection",
             "automatic_clipping",
-            "vertical_video",
-            "automatic_subtitles",
-            "mp4_export"
+            "face_tracking",
+            "animated_subtitles",
+            "viral_score",
+            "social_publishing",
+            "subscriptions"
         ]
-                        }
+            }
     
