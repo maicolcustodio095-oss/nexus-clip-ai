@@ -232,5 +232,5 @@ def capabilities():
             "subtitles",
             "mp4_export"
         ]
-            }
+    }
     
