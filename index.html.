@@ -1,1 +1,137 @@
 
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NEXUS CLIP AI</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#050a15;color:white;font-family:Arial,sans-serif}
+    header{padding:20px;border-bottom:1px solid #18334b;display:flex;justify-content:space-between;align-items:center}
+    .logo{font-size:23px;font-weight:900;letter-spacing:1px}
+    .logo span{color:#00e5ff}
+    .tag{font-size:11px;color:#8fa8bc}
+    main{max-width:1050px;margin:auto;padding:45px 20px}
+    .eyebrow{color:#00e5ff;font-size:12px;letter-spacing:3px}
+    h1{font-size:clamp(32px,6vw,60px);line-height:1.12;margin:18px 0}
+    h1 span{color:#00e5ff}
+    .subtitle{color:#9badc4;line-height:1.7;max-width:620px}
+    .panel{margin-top:35px;background:#0d1729;border:1px solid #19465c;border-radius:18px;padding:24px;box-shadow:0 0 35px #00d5ff0c}
+    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+    .tab{background:#14243b;color:#b5c9db;border:1px solid #24415d;border-radius:9px;padding:12px 16px;cursor:pointer}
+    .tab.active{border-color:#00e5ff;color:#00e5ff}
+    label{display:block;margin-bottom:12px;font-size:14px;color:#c9e3f4}
+    .field{display:flex;gap:10px;flex-wrap:wrap}
+    input{flex:1;min-width:200px;background:#07101e;border:1px solid #30506a;border-radius:10px;color:white;padding:17px;font-size:15px;outline:none}
+    input:focus{border-color:#00e5ff}
+    .action{background:linear-gradient(110deg,#00e5ff,#397dff);border:0;border-radius:10px;color:#03111e;font-weight:800;padding:17px 25px;cursor:pointer}
+    .hint{font-size:12px;color:#819bb0;margin-top:15px}
+    .status{margin-top:20px;padding:15px;border:1px solid #25445c;border-radius:10px;color:#b8d8eb;display:none}
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:25px}
+    .feature{padding:22px;border:1px solid #1d354d;border-radius:13px;background:#0c1626}
+    .feature b{display:block;color:#00e5ff;margin-bottom:10px}
+    .feature p{font-size:13px;color:#9aafc3;line-height:1.6}
+    footer{text-align:center;color:#5f7a91;font-size:12px;padding:35px}
+    @media(max-width:650px){.features{grid-template-columns:1fr}.field{flex-direction:column}.action{width:100%}main{padding-top:35px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">NEXUS <span>CLIP AI</span></div>
+    <div class="tag">NEXT GENERATION VIDEO INTELLIGENCE</div>
+  </header>
+
+  <main>
+    <div class="eyebrow">◆ AI-POWERED CLIP ENGINE</div>
+    <h1>Transforma videos en <span>momentos extraordinarios.</span></h1>
+    <p class="subtitle">
+      Pega el enlace de un video o transmisión en vivo.
+      NEXUS CLIP AI está diseñado para detectar momentos
+      destacados y convertirlos en clips listos para redes sociales.
+    </p>
+
+    <section class="panel">
+      <div class="tabs">
+        <button class="tab active" data-mode="video">▶ Video por enlace</button>
+        <button class="tab" data-mode="live">◉ Transmisión en vivo</button>
+      </div>
+
+      <label id="urlLabel" for="videoUrl">ENLACE DEL VIDEO</label>
+      <div class="field">
+        <input id="videoUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+        <button class="action" id="analyze">⚡ Analizar enlace</button>
+      </div>
+
+      <div class="hint">Primera versión: validación de enlaces. El motor de IA se conectará después.</div>
+      <div id="status" class="status" role="status"></div>
+    </section>
+
+    <div class="features">
+      <div class="feature">
+        <b>◈ ANÁLISIS INTELIGENTE</b>
+        <p>Identificación de momentos destacados mediante IA. Próximamente.</p>
+      </div>
+      <div class="feature">
+        <b>✂ CLIPS AUTOMÁTICOS</b>
+        <p>Creación de videos verticales con subtítulos. Próximamente.</p>
+      </div>
+      <div class="feature">
+        <b>◉ LIVE INTELLIGENCE</b>
+        <p>Procesamiento de transmisiones autorizadas. Próximamente.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>© 2026 NEXUS CLIP AI · Versión 0.1</footer>
+
+  <script>
+    let mode = "video";
+    const tabs = document.querySelectorAll(".tab");
+    const input = document.getElementById("videoUrl");
+    const status = document.getElementById("status");
+
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        mode = tab.dataset.mode;
+        tabs.forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("urlLabel").textContent =
+          mode === "live" ? "ENLACE DE LA TRANSMISIÓN" : "ENLACE DEL VIDEO";
+        input.placeholder = mode === "live"
+          ? "https://www.twitch.tv/canal"
+          : "https://www.youtube.com/watch?v=...";
+        status.style.display = "none";
+      });
+    });
+
+    document.getElementById("analyze").addEventListener("click", () => {
+      const value = input.value.trim();
+      status.style.display = "block";
+
+      try {
+        const url = new URL(value);
+        if (!["http:", "https:"].includes(url.protocol)) {
+          throw new Error("Protocolo no permitido");
+        }
+        const host = url.hostname.toLowerCase();
+        const supported = [
+          "youtube.com", "youtu.be", "twitch.tv"
+        ].some(domain => host === domain || host.endsWith("." + domain));
+
+        if (!supported) {
+          status.textContent = "Por ahora introduce un enlace de YouTube o Twitch.";
+          return;
+        }
+
+        status.textContent =
+          "✓ Enlace reconocido: " + host +
+          ". El procesamiento con IA todavía no está disponible.";
+      } catch {
+        status.textContent = "Introduce un enlace válido que comience con https://";
+      }
+    });
+  </script>
+</body>
+</html>
