@@ -5,448 +5,351 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#050816">
-<title>NEXUS CLIP AI 2.1</title>
+<title>NEXUS CLIP AI · LIVE 0.4</title>
 <style>
 *{box-sizing:border-box}
-body{
-  margin:0;
-  background:radial-gradient(circle at top,#172554,#050816 55%);
-  color:#f5f8ff;
-  font-family:Arial,sans-serif;
-  min-height:100vh
-}
-header{
-  border-bottom:1px solid #273653;
-  background:#070d1d;
-  padding:18px 5%;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px
-}
-.brand{font-size:19px;font-weight:900;white-space:nowrap}
+body{margin:0;background:radial-gradient(circle at top,#172554,#050816 60%);color:#f5f8ff;font-family:Arial,sans-serif;min-height:100vh}
+header{border-bottom:1px solid #273653;background:#070d1d;padding:18px 5%;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{font-size:19px;font-weight:900}
 .brand span{color:#36e4ff}
-.version{
-  font-size:10px;color:#70f0c4;
-  border:1px solid #32665d;
-  padding:8px;border-radius:30px;
-  white-space:nowrap
-}
-main{max-width:1000px;margin:auto;padding:55px 18px}
+.version{font-size:11px;color:#70f0c4;border:1px solid #32665d;padding:8px;border-radius:30px}
+main{max-width:920px;margin:auto;padding:50px 18px}
 .hero{text-align:center}
 .tag{color:#52dfff;font-size:11px;letter-spacing:2px}
-h1{
-  font-size:clamp(34px,7vw,65px);
-  line-height:1.12;
-  margin:24px auto;
-  max-width:800px
-}
-h1 span{
-  background:linear-gradient(90deg,#35e6ff,#8785ff);
-  background-clip:text;
-  -webkit-background-clip:text;
-  color:transparent
-}
-.desc{
-  color:#a0b0ca;
-  line-height:1.7;
-  max-width:620px;
-  margin:auto;
-  font-size:15px
-}
-.panel{
-  margin:35px auto 0;
-  background:linear-gradient(135deg,#111d37,#0a1428);
-  border:1px solid #365170;
-  border-radius:20px;
-  padding:24px;
-  box-shadow:0 20px 65px #0008
-}
-.paneltop{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-  margin-bottom:22px;
-  font-size:14px
-}
-.demo{font-size:10px;color:#95a8c6}
-.status{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  color:#a8bbd2;
-  font-size:12px;
-  margin-bottom:20px
-}
-.dot{
-  width:9px;height:9px;
-  border-radius:50%;
-  background:#e9b65b
-}
+h1{font-size:clamp(32px,7vw,58px);line-height:1.12;margin:20px auto;max-width:750px}
+h1 span{color:#4cdbff}
+.desc{color:#a0b0ca;line-height:1.7;max-width:650px;margin:auto}
+.panel{margin:32px auto 0;background:linear-gradient(135deg,#111d37,#0a1428);border:1px solid #365170;border-radius:20px;padding:24px;box-shadow:0 20px 65px #0008}
+.paneltop{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.demo{font-size:11px;color:#95a8c6}
+.status{display:flex;align-items:center;gap:8px;color:#a8bbd2;font-size:12px;margin:20px 0}
+.dot{width:9px;height:9px;border-radius:50%;background:#e9b65b}
 .dot.online{background:#39e8aa}
 .dot.offline{background:#ff6b80}
-.tabs{display:flex;gap:10px;margin-bottom:25px}
-.tab{
-  flex:1;
-  border:1px solid #2b405f;
-  background:#15223a;
-  color:#aebdd2;
-  border-radius:11px;
-  padding:14px 8px;
-  font-weight:bold;
-  cursor:pointer
-}
-.tab.active{
-  border-color:#36e4ff;
-  color:#36e4ff;
-  background:#12334a
-}
-label{
-  display:block;
-  color:#b7cbe4;
-  font-size:11px;
-  font-weight:bold;
-  letter-spacing:1px;
-  margin-bottom:12px
-}
+.tabs{display:flex;gap:10px;margin:22px 0}
+.tab{flex:1;border:1px solid #2b405f;background:#15223a;color:#aebdd2;border-radius:11px;padding:14px 8px;font-weight:bold;cursor:pointer}
+.tab.active{border-color:#36e4ff;color:#36e4ff;background:#12334a}
+label{display:block;color:#b7cbe4;font-size:11px;font-weight:bold;letter-spacing:1px;margin-bottom:12px}
 .form{display:flex;gap:10px}
-input{
-  flex:1;min-width:0;
-  padding:17px;
-  border-radius:12px;
-  border:1px solid #37516e;
-  background:#071022;
-  color:white;
-  font-size:15px;
-  outline:none
-}
+input{flex:1;min-width:0;padding:17px;border-radius:12px;border:1px solid #37516e;background:#071022;color:white;font-size:15px;outline:none}
 input:focus{border-color:#36e4ff}
-.action{
-  border:0;
-  border-radius:12px;
-  background:linear-gradient(100deg,#39e5fa,#7789ff);
-  color:#071428;
-  padding:17px 22px;
-  font-weight:900;
-  cursor:pointer
-}
-.action:disabled{opacity:.6;cursor:wait}
-.hint{
-  font-size:12px;
-  color:#8da2be;
-  line-height:1.6;
-  margin-top:16px
-}
-#result{
-  display:none;
-  margin-top:18px;
-  padding:16px;
-  background:#11233a;
-  border:1px solid #355b77;
-  border-radius:12px;
-  color:#d7f5ff;
-  font-size:13px;
-  line-height:1.7;
-  overflow-wrap:anywhere
-}
-#result.error{
-  border-color:#a94b64;
-  color:#ffd0da
-}
-.features{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:14px;
-  margin-top:22px
-}
-.feature{
-  background:#0d172b;
-  border:1px solid #253a56;
-  border-radius:15px;
-  padding:20px
-}
-.icon{font-size:27px;color:#39e5fa}
-.feature h3{font-size:14px;margin:15px 0 8px}
-.feature p{
-  color:#9aacbf;
-  font-size:12px;
-  line-height:1.6
-}
-.soon{
-  color:#9999ff;
-  font-size:10px;
-  letter-spacing:1px
-}
-footer{
-  text-align:center;
-  color:#7288a5;
-  font-size:12px;
-  padding:30px
-}
+button{font-family:inherit}
+.action{border:0;border-radius:12px;background:linear-gradient(100deg,#39e5fa,#7789ff);color:#071428;padding:16px 20px;font-weight:900;cursor:pointer}
+.action:disabled{opacity:.55;cursor:wait}
+.secondary{border:1px solid #466482;background:#152840;color:#d5f5ff;padding:13px 16px;border-radius:11px;cursor:pointer}
+.secondary:disabled{opacity:.5;cursor:wait}
+.hint{font-size:12px;color:#8da2be;line-height:1.7;margin-top:16px}
+#result{display:none;white-space:pre-wrap;margin-top:18px;padding:16px;background:#11233a;border:1px solid #355b77;border-radius:12px;color:#d7f5ff;font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+#result.error{border-color:#a94b64;color:#ffd0da}
+.buttons{display:flex;gap:10px;margin-top:15px;flex-wrap:wrap}
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px}
+.feature{background:#0d172b;border:1px solid #253a56;border-radius:15px;padding:20px}
+.feature h3{font-size:14px}
+.feature p{color:#9aacbf;font-size:12px;line-height:1.6}
+.soon{color:#9999ff;font-size:10px;letter-spacing:1px}
+footer{text-align:center;color:#7288a5;font-size:12px;padding:30px}
 @media(max-width:650px){
-  header{padding:17px 15px}
-  .brand{font-size:17px}
-  .version{font-size:9px}
-  main{padding:42px 16px}
-  .panel{padding:17px}
-  .form{flex-direction:column}
-  .action{width:100%}
-  .features{grid-template-columns:1fr}
-  .tab{font-size:12px}
+main{padding:36px 16px}
+.panel{padding:17px}
+.form{flex-direction:column}
+.action{width:100%}
+.features{grid-template-columns:1fr}
+.tab{font-size:12px}
 }
 </style>
 </head>
 <body>
-
 <header>
-  <div class="brand">NEXUS <span>CLIP AI</span></div>
-  <div class="version">● PROTOTIPO 2.1</div>
+<div class="brand">NEXUS <span>CLIP AI</span></div>
+<div class="version">● ENGINE 0.4</div>
 </header>
 
 <main>
-  <section class="hero">
-    <div class="tag">✦ NEXT-GEN VIDEO INTELLIGENCE</div>
-    <h1>
-      De videos extensos a
-      <span>momentos que destacan.</span>
-    </h1>
-    <p class="desc">
-      Una plataforma diseñada para transformar enlaces
-      de videos y transmisiones en clips inteligentes.
-      Nuestro motor de IA está en desarrollo.
-    </p>
-  </section>
+<section class="hero">
+<div class="tag">✦ NEXT-GEN VIDEO INTELLIGENCE</div>
+<h1>De directos a <span>momentos que destacan.</span></h1>
+<p class="desc">
+Comprueba transmisiones de Twitch y YouTube Live mediante enlaces.
+El análisis continuo y los clips automáticos están en desarrollo.
+</p>
+</section>
 
-  <section class="panel">
-    <div class="paneltop">
-      <strong>◈ Centro de análisis</strong>
-      <span class="demo">NEXUS ENGINE · 0.2</span>
-    </div>
+<section class="panel">
+<div class="paneltop">
+<strong>◈ Centro NEXUS LIVE</strong>
+<span class="demo">API · 0.4</span>
+</div>
 
-    <div class="status">
-      <span class="dot" id="dot"></span>
-      <span id="serverStatus">
-        Comprobando conexión con el servidor...
-      </span>
-    </div>
+<div class="status">
+<span class="dot" id="dot"></span>
+<span id="serverStatus">Comprobando conexión...</span>
+</div>
 
-    <div class="tabs">
-      <button class="tab active" data-mode="video">
-        ▶ Video grabado
-      </button>
-      <button class="tab" data-mode="live">
-        ◉ Transmisión en vivo
-      </button>
-    </div>
+<div class="tabs">
+<button type="button" class="tab active" data-mode="live">🔴 Transmisión en vivo</button>
+<button type="button" class="tab" data-mode="video">▶ Video grabado</button>
+</div>
 
-    <form id="form">
-      <label id="urlLabel" for="url">
-        PEGA EL ENLACE DEL VIDEO
-      </label>
+<form id="form">
+<label for="url" id="urlLabel">PEGA EL ENLACE DE LA TRANSMISIÓN</label>
+<div class="form">
+<input id="url" type="url" placeholder="https://www.twitch.tv/canal" maxlength="2048" required>
+<button id="submitBtn" class="action" type="submit">🔎 Comprobar directo</button>
+</div>
+</form>
 
-      <div class="form">
-        <input
-          id="url"
-          type="url"
-          placeholder="https://www.youtube.com/watch?v=..."
-          maxlength="2048"
-          required
-        >
-        <button class="action" id="submitBtn" type="submit">
-          ⚡ Verificar enlace
-        </button>
-      </div>
-    </form>
+<div class="buttons" id="liveActions" hidden>
+<button class="secondary" id="registerBtn" type="button" disabled>Registrar sesión LIVE</button>
+<button class="secondary" id="refreshBtn" type="button" disabled>Consultar sesión</button>
+</div>
 
-    <p class="hint">
-      Compatible con enlaces HTTPS de YouTube y Twitch.
-      La API valida el enlace, pero todavía no procesa
-      videos ni genera clips con IA.
-    </p>
+<p class="hint">
+Para comprobar el estado real de Twitch o YouTube necesitas configurar
+las claves oficiales en Render. Registrar una sesión no activa grabación,
+monitoreo continuo ni generación de clips. Las sesiones son temporales
+y pueden desaparecer si el servidor se reinicia.
+</p>
 
-    <div id="result" role="status" aria-live="polite"></div>
-  </section>
+<div id="result" role="status" aria-live="polite"></div>
+</section>
 
-  <section class="features">
-    <article class="feature">
-      <div class="icon">◈</div>
-      <h3>01 · Análisis inteligente</h3>
-      <p>Detectar conversaciones y momentos destacados.</p>
-      <div class="soon">PRÓXIMAMENTE</div>
-    </article>
-
-    <article class="feature">
-      <div class="icon">✂</div>
-      <h3>02 · Clips automáticos</h3>
-      <p>Crear videos verticales con subtítulos y puntuaciones.</p>
-      <div class="soon">PRÓXIMAMENTE</div>
-    </article>
-
-    <article class="feature">
-      <div class="icon">▣</div>
-      <h3>03 · Exportación</h3>
-      <p>Descargar clips MP4 listos para redes sociales.</p>
-      <div class="soon">PRÓXIMAMENTE</div>
-    </article>
-  </section>
+<section class="features">
+<article class="feature">
+<h3>01 · Estado LIVE</h3>
+<p>Consulta el estado actual de un canal o video mediante las API oficiales.</p>
+<div class="soon">DISPONIBLE AL CONFIGURAR API</div>
+</article>
+<article class="feature">
+<h3>02 · Chat + IA</h3>
+<p>Detección de picos de chat y momentos destacados.</p>
+<div class="soon">PRÓXIMAMENTE</div>
+</article>
+<article class="feature">
+<h3>03 · Clips automáticos</h3>
+<p>Videos verticales, subtítulos y publicación.</p>
+<div class="soon">PRÓXIMAMENTE</div>
+</article>
+</section>
 </main>
 
-<footer>
-  © 2026 NEXUS CLIP AI · Versión 2.1
-</footer>
+<footer>© 2026 NEXUS CLIP AI · Versión 0.4</footer>
 
 <script>
 const API = "https://nexus-clip-ai-api.onrender.com";
 
-let mode = "video";
+let mode = "live";
+let liveReady = false;
+let sessionId = null;
 
-const tabs = document.querySelectorAll(".tab");
-const input = document.getElementById("url");
-const result = document.getElementById("result");
-const submitBtn = document.getElementById("submitBtn");
-const serverStatus = document.getElementById("serverStatus");
-const dot = document.getElementById("dot");
+const $ = id => document.getElementById(id);
+const result = $("result");
+const submitBtn = $("submitBtn");
 
-function showResult(message, isError = false) {
+function show(message, error = false) {
   result.style.display = "block";
-  result.classList.toggle("error", isError);
+  result.classList.toggle("error", error);
   result.textContent = message;
 }
 
-async function checkServer() {
-  serverStatus.textContent = "Conectando con NEXUS ENGINE...";
-  dot.className = "dot";
-
+async function call(path, body, method = "POST") {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60000);
+  const timer = setTimeout(() => controller.abort(), 45000);
 
   try {
-    const response = await fetch(API + "/health", {
+    const response = await fetch(API + path, {
+      method,
+      headers: {"Content-Type": "application/json"},
+      body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal
     });
 
-    if (!response.ok) {
-      throw new Error("Respuesta HTTP " + response.status);
-    }
-
     const data = await response.json();
 
-    if (data.status !== "ok") {
-      throw new Error("Estado inesperado");
+    if (!response.ok) {
+      throw Error(
+        typeof data.detail === "string"
+          ? data.detail
+          : "Error HTTP " + response.status
+      );
     }
 
-    dot.className = "dot online";
-    serverStatus.textContent =
-      "NEXUS ENGINE conectado · Versión " +
-      (data.version || "0.2");
-
-  } catch (error) {
-    dot.className = "dot offline";
-    serverStatus.textContent =
-      "No se pudo conectar con el servidor. Intenta nuevamente.";
+    return data;
   } finally {
     clearTimeout(timer);
   }
 }
 
-tabs.forEach(tab => {
+function updateActions() {
+  $("liveActions").hidden = mode !== "live";
+  $("registerBtn").disabled = !liveReady;
+  $("refreshBtn").disabled = !sessionId;
+}
+
+async function checkServer() {
+  try {
+    const d = await call("/health", null, "GET");
+
+    $("dot").className = "dot online";
+    $("serverStatus").textContent =
+      "NEXUS ENGINE conectado · Versión " + d.version +
+      " · Twitch " +
+      (d.twitch_configured ? "configurado" : "pendiente") +
+      " · YouTube " +
+      (d.youtube_configured ? "configurado" : "pendiente");
+
+  } catch (e) {
+    $("dot").className = "dot offline";
+    $("serverStatus").textContent =
+      "No se pudo conectar con NEXUS ENGINE";
+  }
+}
+
+document.querySelectorAll(".tab").forEach(tab => {
   tab.addEventListener("click", () => {
     mode = tab.dataset.mode;
 
-    tabs.forEach(t => t.classList.remove("active"));
-    tab.classList.add("active");
+    document.querySelectorAll(".tab").forEach(t => {
+      t.classList.toggle("active", t === tab);
+    });
 
-    document.getElementById("urlLabel").textContent =
+    $("urlLabel").textContent =
       mode === "live"
         ? "PEGA EL ENLACE DE LA TRANSMISIÓN"
         : "PEGA EL ENLACE DEL VIDEO";
 
-    input.placeholder =
+    $("url").placeholder =
       mode === "live"
         ? "https://www.twitch.tv/canal"
         : "https://www.youtube.com/watch?v=...";
 
+    submitBtn.textContent =
+      mode === "live"
+        ? "🔎 Comprobar directo"
+        : "⚡ Validar enlace";
+
+    liveReady = false;
+    sessionId = null;
+    updateActions();
     result.style.display = "none";
   });
 });
 
-document.getElementById("form").addEventListener(
-  "submit", async event => {
-    event.preventDefault();
+$("url").addEventListener("input", () => {
+  liveReady = false;
+  sessionId = null;
+  updateActions();
+});
 
-    const url = input.value.trim();
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
 
-    try {
-      const parsed = new URL(url);
+  submitBtn.disabled = true;
+  liveReady = false;
+  sessionId = null;
+  updateActions();
 
-      if (parsed.protocol !== "https:") {
-        showResult(
-          "Utiliza un enlace que comience con https://",
-          true
-        );
-        return;
-      }
-    } catch {
-      showResult("Introduce un enlace válido.", true);
-      return;
-    }
+  show("Consultando NEXUS ENGINE...");
 
-    submitBtn.disabled = true;
-    submitBtn.textContent = "⏳ Consultando servidor...";
-    showResult("Enviando enlace a NEXUS ENGINE...");
+  try {
+    const url = $("url").value.trim();
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 60000);
+    if (mode === "live") {
+      const d = await call("/api/live/check", {url});
 
-    try {
-      const response = await fetch(API + "/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          url: url,
-          mode: mode
-        }),
-        signal: controller.signal
+      liveReady = d.is_live;
+
+      show(
+        (d.is_live ? "🔴 EN VIVO" : "⚪ NO ESTÁ EN VIVO") +
+        "\nPlataforma: " + d.platform +
+        "\nCanal/video: " + d.target +
+        "\nTítulo: " + (d.title || "No disponible") +
+        "\nEspectadores: " + (d.viewer_count ?? "No disponible") +
+        "\nConsulta: " + d.checked_at +
+        "\n\nEl monitoreo automático todavía no está activo."
+      );
+
+    } else {
+      const d = await call("/api/analyze", {
+        url,
+        mode: "video"
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        const detail = data.detail || data.error ||
-          "El servidor rechazó la solicitud.";
-
-        showResult(String(detail), true);
-        return;
-      }
-
-      showResult(
-        "✓ Enlace recibido correctamente.\n" +
-        "Plataforma: " + data.platform + "\n" +
-        "Modo: " + data.mode + "\n" +
-        "Solicitud: " + data.job_id + "\n" +
-        "Estado: " + data.status + "\n\n" +
-        "El análisis con IA todavía no está disponible."
+      show(
+        "✓ Enlace válido" +
+        "\nPlataforma: " + d.platform +
+        "\nSolicitud: " + d.job_id +
+        "\nEstado: " + d.status +
+        "\n\nEl análisis con IA todavía no está activo."
       );
-
-    } catch (error) {
-      showResult(
-        error.name === "AbortError"
-          ? "La conexión tardó demasiado. Intenta de nuevo."
-          : "No se pudo contactar con la API. " +
-            "Comprueba tu conexión y vuelve a intentar.",
-        true
-      );
-    } finally {
-      clearTimeout(timer);
-      submitBtn.disabled = false;
-      submitBtn.textContent = "⚡ Verificar enlace";
     }
-  }
-);
 
+  } catch (e) {
+    show(
+      e.message || "No se pudo realizar la consulta.",
+      true
+    );
+
+  } finally {
+    submitBtn.disabled = false;
+    updateActions();
+  }
+});
+
+$("registerBtn").addEventListener("click", async () => {
+  if (!liveReady) return;
+
+  $("registerBtn").disabled = true;
+
+  try {
+    const d = await call("/api/live/sessions", {
+      url: $("url").value.trim()
+    });
+
+    sessionId = d.session_id;
+
+    show(
+      "✓ Sesión registrada" +
+      "\nID: " + sessionId +
+      "\nEstado: " + d.status +
+      "\nMonitoreo activo: NO" +
+      "\nClips generados: 0" +
+      "\n\nEsta sesión no analiza ni graba el directo."
+    );
+
+  } catch (e) {
+    show(e.message, true);
+
+  } finally {
+    updateActions();
+  }
+});
+
+$("refreshBtn").addEventListener("click", async () => {
+  if (!sessionId) return;
+
+  try {
+    const d = await call(
+      "/api/live/sessions/" + encodeURIComponent(sessionId),
+      null,
+      "GET"
+    );
+
+    show(
+      "Sesión: " + d.session_id +
+      "\nEstado: " + d.status +
+      "\nMonitoreo activo: " +
+      (d.monitoring_active ? "Sí" : "No") +
+      "\nClips generados: " + d.clips_generated +
+      "\n\nEsta consulta muestra el registro de la sesión, " +
+      "no vuelve a consultar el estado de la transmisión."
+    );
+
+  } catch (e) {
+    show(e.message, true);
+  }
+});
+
+updateActions();
 checkServer();
 </script>
 </body>
